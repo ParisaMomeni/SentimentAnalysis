@@ -1,0 +1,127 @@
+import pandas as pd
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.model_selection import train_test_split
+from transformers import AutoModelForSequenceClassification, AutoTokenizer, AutoConfig
+import numpy as np
+import torch
+from scipy.special import softmax
+import sys
+from scipy.stats import ttest_ind
+import statsmodels.api as sm
+from statsmodels.formula.api import ols
+
+def main():
+    # Load the data
+    df = pd.read_pickle(sys.argv[1])
+    tweetsLimit = int(sys.argv[2])
+    fileOutput = int(sys.argv[3])  # if 1, output results to file, else output results to stdio
+    fileOutputName = sys.argv[4]
+    tweetsLimit = min(tweetsLimit, len(df.index))
+
+    if fileOutput == 1:
+        outputFile = open(fileOutputName, "w")
+    
+    # Process DataFrame
+    df = df.head(tweetsLimit)
+    df = df.dropna(subset=['Gender', 'Country', 'Region'])
+    
+    # Filter for US data
+    us_df = df[df['Country'] == 'United States of America']
+    state_mapping = {state: i+1 for i, state in enumerate(sorted(us_df['Region'].dropna().astype(str).unique()))}
+    us_df['state_label'] = us_df['Region'].map(state_mapping)
+    df['state_label'] = us_df['state_label']
+    df.loc[:, 'state_label'].fillna(0, inplace=True)
+    us_df.fillna(0, inplace=True)
+    df.fillna(0, inplace=True)
+
+    # Encode Gender
+    df_encoded = pd.get_dummies(df['Gender'], prefix='Gender', drop_first=True)
+
+    # Load the sentiment model
+    MODEL = "cardiffnlp/twitter-roberta-base-sentiment-latest"
+    tokenizer = AutoTokenizer.from_pretrained(MODEL)
+    model = AutoModelForSequenceClassification.from_pretrained(MODEL)
+
+    # Calculate sentiment scores
+    sentiment_scores = []
+    for row in range(len(df)):
+        text = df["Snippet"].iloc[row]
+        encoded_input = tokenizer(text, return_tensors='pt')
+        with torch.no_grad():
+            output = model(**encoded_input)
+        scores = output[0][0].detach().numpy()
+        scores = softmax(scores)  # [negative, neutral, positive]
+        sentiment_scores.append(scores[0])
+    
+    #df['sentiment_score'] = sentiment_scores
+    df.loc[:, 'sentiment_score'] = sentiment_scores
+
+
+    # Prepare data for modeling
+    X = df_encoded.reset_index(drop=True)
+    y = df['sentiment_score'].reset_index(drop=True)
+
+    # Handle missing values
+    from sklearn.impute import SimpleImputer
+    imputer = SimpleImputer(strategy='mean')
+    X = imputer.fit_transform(X)
+
+    # Split the data
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4, random_state=42)
+
+    # Fit the model
+    regressor = LinearRegression()
+    regressor.fit(X_train, y_train)
+    y_pred = regressor.predict(X_test)
+
+    # Evaluate the model
+    mse = mean_squared_error(y_test, y_pred)
+    r2 = r2_score(y_test, y_pred)
+    X_df = pd.DataFrame(X, columns=df_encoded.columns)
+    coefficients = pd.DataFrame(regressor.coef_, X_df.columns, columns=['Coefficient'])
+
+    print(f'Mean Squared Error: {mse}')
+    print(f'R^2 Score: {r2}')
+    print(coefficients)
+
+    # Display results
+    test_results = pd.DataFrame({
+        'Actual': y_test.values,
+        'Predicted': y_pred
+    })
+    print(test_results.head())
+
+    # Statistical analysis
+    male_sentiments = df[df['Gender'] == 'male']['sentiment_score']
+    female_sentiments = df[df['Gender'] == 'female']['sentiment_score']
+    t_stat, p_value = ttest_ind(male_sentiments, female_sentiments, equal_var=False)
+    print(f'T-test statistic: {t_stat}')
+    print(f'P-value: {p_value}')
+
+    male_encoded = df_encoded.loc[male_sentiments.index].reset_index(drop=True)
+    male_predictions = regressor.predict(male_encoded)
+    df.loc[male_sentiments.index, 'predicted_sentiment_score'] = male_predictions
+   
+    # Ensure 'Gender' is categorical
+    df['Gender'] = df['Gender'].astype('category')
+
+    # Two-Way ANOVA
+    model = ols('sentiment_score ~ C(Gender) + C(state_label) + C(Gender):C(state_label)', data=df).fit()
+    anova_table = sm.stats.anova_lm(model, typ=2)
+    print(anova_table)
+
+    # Output results to file or stdio
+    if fileOutput == 1:
+        outputFile.write(f"Mean Squared Error: {mse}\n")
+        outputFile.write(f"R^2 Score: {r2}\n")
+        coefficients.to_csv(outputFile, index=True)
+        test_results.to_csv(outputFile, index=False)
+        df[['Snippet', 'predicted_sentiment_score']].to_csv(outputFile, index=False)
+        outputFile.write(f"T-test Statistic: {t_stat}\n")
+        outputFile.write(f"P-value: {p_value}\n")
+        outputFile.write(f"ANOVA Table:\n{anova_table}\n")
+        outputFile.close()
+
+if __name__ == "__main__":
+    main()
