@@ -91,9 +91,9 @@ if __name__ == "__main__":
     print(f"Total number of rows in the original dataset: {len(df)}")
 
     #whole rows in orginal DF = 859751
-    tweetsLimit = 100
-    tweetsLimit = min(tweetsLimit, len(df.index))
-    df = df.head(tweetsLimit)
+    #tweetsLimit = 100
+    #tweetsLimit = min(tweetsLimit, len(df.index))
+    #df = df.head(tweetsLimit)
     # Preprocess the data
     #processed_df contains the processed version of the original data.
     #grouped_df is the grouped-by-author version we discussed earlier.

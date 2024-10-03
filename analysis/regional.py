@@ -3,13 +3,14 @@ import numpy as np
 from scipy import stats
 from statsmodels.formula.api import ols
 import statsmodels.api as sm
+from statsmodels.stats.multicomp import pairwise_tukeyhsd
 import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 
 def Regional_analysis(df):
     #fine but we might want to make the output directory a parameter of the function for more flexibility.
-    RegionalTtestOutput = f"output/regional/regional_ttest_results.csv"
-    RegionalAnovaOutput = f"output/regional/regional_anova_results.csv"
-       state_to_region = {
+    RegionalRoot = f"output/regional/regional"
+    state_to_region = {
         'Alabama': 'Southeast',
         'Alaska': 'West',
         'Arizona': 'Southwest',
@@ -61,14 +62,20 @@ def Regional_analysis(df):
         'Wisconsin': 'Midwest',
         'Wyoming': 'West',
         'District of Columbia': 'Northeast',
-        'Puerto Rico': 'Territory'
     }
     #We have a col name Region
     #I can add this part of following code to preprocess_data.py
     df['state_to_region'] = df['Region'].map(state_to_region)
-    # Group by 'Region' and calculate mean sentiment score for each region
-    region_group = df.groupby('state_to_region')['sentiment_label'].mean().reset_index()
+    # Group by 'Region'; calculate mean sentiment score for each region
+    #region_group = df.groupby('state_to_region')['sentiment_label'].mean().reset_index()
+    region_group = df.groupby('state_to_region')['sentiment_label'].agg([ 'mean', 'std', 'count'])
+    print(region_group.head()) 
+    region_group = region_group.reset_index()  # This brings 'Gender' back as a column
+    print(region_group.head()) 
+    region_group.fillna(0, inplace=True)
+    region_group.to_csv(f"{RegionalRoot}_mean.csv", index=False, header=True)
 
+    
     # ANOVA: Test if there are significant differences between the regions
     region_sentiment_groups = [df[df['state_to_region'] == region]['sentiment_label'] for region in df['state_to_region'].unique()]
     f_statistic, p_value = stats.f_oneway(*region_sentiment_groups)
@@ -80,7 +87,8 @@ def Regional_analysis(df):
     }])
 
     # Save ANOVA results to CSV file
-    anova_results.to_csv(f"{RegionalAnovaOutput}_anova_results.csv", index=True)
+    anova_results.fillna(0, inplace=True)
+    anova_results.to_csv(f"{RegionalRoot}_anova_results.csv", index=False, header=True)
 
     # Tukey's HSD test (if significant ANOVA result)
     if p_value < 0.05:
@@ -88,7 +96,8 @@ def Regional_analysis(df):
                                   groups=df['state_to_region'],
                                   alpha=0.05)
         tukey_summary = pd.DataFrame(data=tukey.summary().data[1:], columns=tukey.summary().data[0])
-        tukey_summary.to_csv(f"{RegionalAnovaOutput}_tukey_results.csv", index=True)
+        tukey_summary.fillna(0, inplace=True)
+        tukey_summary.to_csv(f"{RegionalRoot}_tukey_results.csv", index=False, header=True)
 
     # Perform pairwise t-tests between all regions
     ttest_results = []
@@ -102,17 +111,22 @@ def Regional_analysis(df):
             region1_sentiments = df[df['state_to_region'] == region1]['sentiment_label']
             region2_sentiments = df[df['state_to_region'] == region2]['sentiment_label']
 
-            t_stat, p_val = stats.ttest_ind(region1_sentiments, region2_sentiments, equal_var=False)
+            t_stat, p_val = stats.ttest_ind(region1_sentiments, region2_sentiments, equal_var=True)
 
             ttest_results.append({
-                'Comparison': f"{region1} vs {region2}",
+                'region1': region1,
+                'region2':  region2,
                 't-statistic': t_stat,
                 'p-value': p_val
             })
-
+  
     # Save t-test results to CSV
     ttest_results_df = pd.DataFrame(ttest_results)
-    ttest_results_df.to_csv(f"{RegionalTtestOutput}_ttest_results.csv", index=True)
+    ttest_results_df.fillna(0, inplace=True)
+    ttest_results_df.to_csv(f"{RegionalRoot}_ttest_results.csv", index=False, header=True)
 
-    print(f"Results saved to {RegionalTtestOutput}_anova_results.csv, {RegionalTtestOutput}_ttest_results.csv")
+    print(f"Results saved to {RegionalRoot}_anova_results.csv, {RegionalRoot}_ttest_results.csv")
 
+#--------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------
