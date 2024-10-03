@@ -1,0 +1,67 @@
+# import pandas as pd
+from sklearn.cluster import KMeans
+import matplotlib.pyplot as plt
+from mpl_toolkits.basemap import Basemap
+import geopandas as gpd
+import seaborn as sns
+import numpy as np
+import plotly.graph_objects as go
+
+    df = pd.read_csv('output/interests/Regional_ttest_results.csv')
+    # 1. Bar plot of mean sentiments by interest
+    plt.figure(figsize=(12, 6))
+    interest_stats['mean'].plot(kind='bar', yerr=interest_stats['std'], capsize=5)
+    plt.title('Mean Sentiment by Interest')
+    plt.xlabel('Interest')
+    plt.ylabel('Mean Sentiment')
+    plt.xticks(rotation=45, ha='right')
+    plt.tight_layout()
+    plt.savefig(f"{interestsRoot}_mean_sentiment_barplot.png")
+    plt.close()
+
+    # 2. Box plot of sentiments by interest
+    plt.figure(figsize=(14, 8))
+    sns.boxplot(x='Interest', y='sentiment_label', data=df)
+    plt.title('Sentiment Distribution by Interest')
+    plt.xlabel('Interest')
+    plt.ylabel('Sentiment Score')
+    plt.xticks(rotation=45, ha='right')
+    plt.tight_layout()
+    plt.savefig(f"{interestsRoot}_sentiment_boxplot.png")
+    plt.close()
+
+    # 3. Heatmap of sentiment correlation between interests
+    pivot_df = df.pivot_table(values='sentiment_label', index='Author', columns='Interest', aggfunc='first')
+    correlation_matrix = pivot_df.corr()
+    plt.figure(figsize=(12, 10))
+    sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', vmin=-1, vmax=1, center=0)
+    plt.title('Correlation of Sentiments Between Interests')
+    plt.tight_layout()
+    plt.savefig(f"{interestsRoot}_correlation_heatmap.png")
+    plt.close()
+
+    # 4. Violin plot of sentiments by interest
+    plt.figure(figsize=(14, 8))
+    sns.violinplot(x='Interest', y='sentiment_label', data=df)
+    plt.title('Sentiment Distribution by Interest (Violin Plot)')
+    plt.xlabel('Interest')
+    plt.ylabel('Sentiment Score')
+    plt.xticks(rotation=45, ha='right')
+    plt.tight_layout()
+    plt.savefig(f"{interestsRoot}_sentiment_violinplot.png")
+    plt.close()
+
+    # 5. Scatter plot of sentiment vs. number of users for each interest
+    plt.figure(figsize=(12, 8))
+    plt.scatter(interest_stats['count'], interest_stats['mean'], alpha=0.6)
+    for idx, row in interest_stats.iterrows():
+        plt.annotate(idx, (row['count'], row['mean']))
+    plt.title('Mean Sentiment vs. Number of Users by Interest')
+    plt.xlabel('Number of Users')
+    plt.ylabel('Mean Sentiment')
+    plt.tight_layout()
+    plt.savefig(f"{interestsRoot}_sentiment_vs_users_scatter.png")
+    plt.close()
+
+    print(f"Interest analysis complete. Results saved in {interestsRoot}")
+
