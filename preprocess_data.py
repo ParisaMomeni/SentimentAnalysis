@@ -65,7 +65,8 @@ def group_by_author(df):
         'Country': 'first',
         'Region': 'first',
         'Engagement Type': most_common,
-        'Interest': most_common 
+        'Interest': most_common, 
+         
     }).reset_index()
     
     return grouped_df

@@ -37,4 +37,24 @@ if 'Gender' in descriptive_df.columns and 'mean' in descriptive_df.columns and '
 
     plt.tight_layout()
     plt.savefig("output/gender/gender_mean_sentiment_barplot.png")
-    plt.close()
+
+    plt.figure(figsize=(10, 6))
+sns.boxplot(data=descriptive_df, x='Gender', y='mean', palette=['pink', 'skyblue', 'lightgreen'])
+plt.title('Sentiment Score Distribution by Gender', fontsize=18, fontweight='bold')
+plt.xlabel('Gender', fontsize=14)
+plt.ylabel('Sentiment Score', fontsize=14)
+plt.tight_layout()
+plt.savefig("output/gender/gender_mean_boxplot.png")
+
+plt.figure(figsize=(10, 6))
+for gender in descriptive_df['Gender'].unique():
+    subset = descriptive_df[descriptive_df['Gender'] == gender]
+    sns.kdeplot(subset['mean'], label=gender, fill=True, alpha=0.4)
+
+plt.title('Sentiment Score Distribution by Gender', fontsize=18, fontweight='bold')
+plt.xlabel('Sentiment Score', fontsize=14)
+plt.ylabel('Density', fontsize=14)
+plt.legend(title='Gender')
+plt.tight_layout()
+plt.savefig("output/gender/gender_mean_distribution_plot.png")
+plt.close()

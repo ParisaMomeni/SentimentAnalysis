@@ -126,7 +126,7 @@ def Regional_analysis(df):
     ttest_results_df.to_csv(f"{RegionalRoot}_ttest_results.csv", index=False, header=True)
 
     print(f"Results saved to {RegionalRoot}_anova_results.csv, {RegionalRoot}_ttest_results.csv")
-
+    return df
 #--------------------------------------------------------------------------------
 #--------------------------------------------------------------------------------
 #--------------------------------------------------------------------------------

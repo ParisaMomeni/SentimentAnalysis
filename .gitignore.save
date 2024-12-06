@@ -1,0 +1,5 @@
+# Add these files to .gitignore
+data/Semaglutide_Twitter_20210601_20240331.pkl
+output/analyze_interest
+
+

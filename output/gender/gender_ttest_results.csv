@@ -1,0 +1,4 @@
+genderGroup1,genderGroup2,t-statistic,p-value
+Men,Women,44.567008911424146,0.0
+Men,Unknown,44.6530350495806,0.0
+Women,Unknown,-9.619310437686764,6.7199950662041215e-22
